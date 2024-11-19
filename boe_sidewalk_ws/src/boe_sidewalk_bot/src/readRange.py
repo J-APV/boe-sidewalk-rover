@@ -7,7 +7,9 @@ from sensor_msgs.msg import Range
 from geometry_msgs.msg import Twist
 # import datetime as time
 
+
 SIZE = 5
+
 class ReceiveRange:
     def __init__(self):
         self.msg_sub = []

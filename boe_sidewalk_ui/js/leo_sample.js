@@ -35,6 +35,10 @@ var max_angular_speed = 1.2;
 var linear_speed = 0.1;
 var angular_speed = 0.6;
 
+let detection_range = 8;
+let danger_zone =  2;
+let current_distance;
+let current_speed;
 function initROS() {
 
     ros = new ROSLIB.Ros({
@@ -85,7 +89,8 @@ function initROS() {
         queue_length: 1
     });
     batterySub.subscribe(batteryCallback);
-
+    // Subscribes to the is_safe topic that is being published by pi_sonar.pp, and python listens to the topic and reports/bridges to JS.
+    // This is how we can listen to topic /is_safe using js bridge.
     isSafeSub = new ROSLIB.Topic({
         ros : ros,
         name : '/is_safe',
@@ -119,6 +124,14 @@ function initROS() {
         queue_size: 10
     });
     sidPub.advertise();
+    // Listen to ultrasonic sensor sonar #1 
+    piSonarSub = new ROSLIB.Topic({
+        ros: ros,
+        name: '/pi_sonar/sonar_1',
+        messageType: 'std_msgs/Int16',
+        queue_size: 1
+    });
+    piSonarSub.subscribe(piSonarDataCallback);
 
 }
 
@@ -205,9 +218,13 @@ function isSafeCallback(message){
     isSafeVal = message.data;
 }
 
+// If button is pressed to go forward, it will check if its in a dangerous position. If it's not safe, it will recalculate speed.
 function publishTwist() {
-    if(isSaveVal < 1 ){
-        twist.linear.x = twist.linear.x * (0.5);
+    if(isSafeVal){
+        twist.linear.x = linear_speed;
+        twist.angular.z = 0
+    }else{
+        twist.linear.x = calculateNewSpeed();
     }
     cmdVelPub.publish(twist);
 }
@@ -298,9 +315,14 @@ function setSpeed(){
     linear_speed = parseFloat(document.getElementById("speed-select").value);
 }
 
+// If button is pressed to go forward, it will check if its in a dangerous position. If it's not safe, it will recalculate speed.
 function forward(){
-    twist.linear.x = linear_speed;
-    twist.angular.z = 0
+    if(isSafeVal){
+        twist.linear.x = linear_speed;
+        twist.angular.z = 0
+    }else{
+        twist.linear.x = calculateNewSpeed();
+    }
 
 }
 
@@ -382,6 +404,15 @@ function shutdown() {
     startPub.unadvertise();
     sidPub.unadvertise();
     ros.close();
+}
+// Calculate new speed if there's an object
+function calculateNewSpeed() {
+    current_speed = linear_speed * ((current_distance - danger_zone) / (detection_range - danger_zone));
+    return current_speed;
+}
+// Get Data from topic sonar #1
+function piSonarDataCallback(message){
+    current_distance = message.data;
 }
 
 window.onload = function () {

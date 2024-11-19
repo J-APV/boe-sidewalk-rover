@@ -1,8 +1,8 @@
-var twist;
+var twist; // move
 var manager;
-var ros;
-var batterySub;
-var cmdVelPub;
+var ros; // communication between rover and remote controller
+var batterySub; // keep track of battery
+var cmdVelPub; 
 var twistIntervalID;
 var robot_hostname;
 var batterySub;
@@ -13,8 +13,8 @@ var sidPub;
 var sidVal;
 var sidIntervalID;
 
-var systemRebootPub;
-var systemShutdownPub;
+var systemRebootPub; // not yet implemented
+var systemShutdownPub; // not yet implemented
 
 // var rebootData  = 0;
 // var shutdownData = 0;
@@ -52,7 +52,7 @@ function initROS() {
             z: 0
         }
     });
-
+    // sets geometric coordinates???
     cmdVelPub = new ROSLIB.Topic({
         ros: ros,
         name: '/cmd_vel',
@@ -137,7 +137,7 @@ function createJoystick() {
         twist.angular.z = 0
     });
 }
-
+// only if have keypad
 function initTeleopKeyboard() {
     var body = document.getElementsByTagName('body')[0];
     body.addEventListener('keydown', function(e) {
@@ -176,7 +176,7 @@ function batteryCallback(message) {
     // document.getElementById('batteryID').innerHTML = 'Voltage: ' + message.voltage.toPrecision(4) + 'V';
     document.getElementById('batteryID').innerHTML = 'Voltage: ' + vol.toFixed(2) + 'V';
 }
-
+// console? 
 function rawDataCallback(message) {
     if(lineNo < maxLine){
         raw_data += message.data + "\r\n";
@@ -188,23 +188,24 @@ function rawDataCallback(message) {
     
     document.getElementById('rawdata').value = raw_data;
 }
-
+// should be twistPub
+// publishes the speed that was set in a diff func
 function publishTwist() {
     cmdVelPub.publish(twist);
 }
-
-function systemReboot(){
-    systemRebootPub.publish()
+//no work
+function systemReboot() {
+    systemRexbootPub.publish()
     alertMessage = "Rebooting system"
     displayAlert(alertMessage)
 }
-
-function turnOff(){
+//no work
+function turnOff() {
     systemShutdownPub.publish()
     alertMessage = "Turning off Rover"
     displayAlert(alertMessage)
 }
-
+// ready to collect data
 function publishStart(){
     var startMsg;
     startMsg = new ROSLIB.Message({
@@ -237,7 +238,7 @@ function setStart(){
     displayAlert(alertMessage)
 
 }
-
+// toggle button to stop collecting data
 function setStop(){
     startVal = 0;
     if(checkSID()){
@@ -255,7 +256,7 @@ function setStop(){
         $(startButton).prop("disabled", false);
     });
 }
-
+// pUblishes the id that was set by setSID
 function publishSID(){
     var sidMsg;
     sidMsg = new ROSLIB.Message({
@@ -278,7 +279,7 @@ function setSID(){
 function setSpeed(){
     linear_speed = parseFloat(document.getElementById("speed-select").value);
 }
-
+// functions for arrow functionality
 function forward(){
     twist.linear.x = linear_speed;
     twist.angular.z = 0
@@ -346,13 +347,14 @@ function displayAlert(alertText) {
         });
     }, 2500);
 }
-
+// stop rover when screen is off
 window.onblur = function(){  
     twist.linear.x = 0;
     twist.angular.z = 0;
     publishTwist();             
   }  
 
+  
 function shutdown() {
     clearInterval(twistIntervalID);
     cmdVelPub.unadvertise();

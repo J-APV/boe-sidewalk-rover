@@ -193,7 +193,7 @@ class Follower:
               self.target_angle, self.target_angle * (180 / math.pi), self.relative_angle)
         self.rate.sleep()
         self.target_angle = 0
-
+    
 
 if __name__ == '__main__':
     rospy.init_node('follower')
