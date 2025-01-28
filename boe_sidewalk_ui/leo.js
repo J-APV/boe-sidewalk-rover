@@ -12,8 +12,6 @@ var startIntervalID;
 var sidPub;
 var sidVal;
 var sidIntervalID;
-var isSafeSub;
-var isSafeVal = 1;
 
 var systemRebootPub;
 var systemShutdownPub;
@@ -35,10 +33,16 @@ var max_angular_speed = 1.2;
 var linear_speed = 0.1;
 var angular_speed = 0.6;
 
-let detection_range = 8;
-let danger_zone =  2;
-let current_distance;
-let current_speed;
+// Collision Avoidance variables for formula
+let detection_range = 2.438; // the range of the sonar is able to capture up to 8 feet or 2.438 meters
+let danger_zone = 0.5; // this is the safe distance that the rover can be from an object in meters. This is ~1.64 feet
+let current_distance = 0;
+let current_speed = 0;
+var isSafeSub;
+var isSafeVal = 1;
+let isForward = 0;
+
+
 function initROS() {
 
     ros = new ROSLIB.Ros({
@@ -89,6 +93,7 @@ function initROS() {
         queue_length: 1
     });
     batterySub.subscribe(batteryCallback);
+    
     // Subscribes to the is_safe topic that is being published by pi_sonar.pp, and python listens to the topic and reports/bridges to JS.
     // This is how we can listen to topic /is_safe using js bridge.
     isSafeSub = new ROSLIB.Topic({
@@ -99,7 +104,7 @@ function initROS() {
     })
 
     isSafeSub.subscribe(isSafeCallback);
-
+    
     raw_dataSub = new ROSLIB.Topic({
         ros : ros,
         name : '/rover_data',
@@ -107,7 +112,6 @@ function initROS() {
         queue_length: 1
     });
     raw_dataSub.subscribe(rawDataCallback);
-
 
     startPub = new ROSLIB.Topic({
         ros: ros,
@@ -124,14 +128,25 @@ function initROS() {
         queue_size: 10
     });
     sidPub.advertise();
-    // Listen to ultrasonic sensor sonar #1 
-    piSonarSub = new ROSLIB.Topic({
-        ros: ros,
-        name: '/pi_sonar/sonar_1',
-        messageType: 'std_msgs/Int16',
-        queue_size: 1
+    
+    // subscribes to the avg distance being calculated by readRange.py (publisher)
+    distanceSub = new ROSLIB.Topic({
+        ros : ros,
+        name : '/avg_distance',
+        messageType : 'std_msgs/Float64',
+        queue_length: 1
     });
-    piSonarSub.subscribe(piSonarDataCallback);
+
+    distanceSub.subscribe(distanceCallback);
+    
+    speedSub = new ROSLIB.Topic({
+        ros : ros,
+        name : '/current_speed',
+        messageType : 'std_msgs/Float64',
+        queue_length: 1
+    });
+
+    speedSub.subscribe(speedCallback);
 
 }
 
@@ -213,21 +228,40 @@ function rawDataCallback(message) {
     
     document.getElementById('rawdata').value = raw_data;
 }
-
+// returns 0 or 1 whether or not the distance is safe or not
 function isSafeCallback(message){
     isSafeVal = message.data;
 }
 
-// If button is pressed to go forward, it will check if its in a dangerous position. If it's not safe, it will recalculate speed.
+// assigns current distance from the average distance that was published from readRange.py
+function distanceCallback(message) {
+	current_distance = message.data;
+}
+
+//assign current distance 
+function speedCallback(message) {
+	current_speed = message.data;
+}
+
 function publishTwist() {
-    if(isSafeVal){
-        twist.linear.x = linear_speed;
-        twist.angular.z = 0
-    }else{
-        // twist.linear.x = calculateNewSpeed();
-        twist.linear.x = 0;
-    }
-    cmdVelPub.publish(twist);
+console.log("Is safe val" + isSafeVal);
+console.log("publish twist function is called");
+    if(isSafeVal) {
+    	if(isForward){
+    		twist.linear.x = newSpeed();
+    	}
+	    cmdVelPub.publish(twist);
+   }else{
+   	if(isForward){
+  	   let speed = newSpeed();
+  	   if(speed < 0){
+		speed = 0;
+	   }  	     	   
+	   twist.linear.x = speed;
+	   console.log("Speed decrease! new speed: " + speed);
+	   }
+       cmdVelPub.publish(twist);
+	}
 }
 
 function systemReboot(){
@@ -287,6 +321,7 @@ function setStop(){
 
     // enable the start button after STOP is clicked
     $("#stopButton").on("click", function() {
+    	isForward = 0;
         $(this).prop("disabled", true)
         startButton = document.getElementById("startButton")
         $(startButton).prop("disabled", false);
@@ -316,36 +351,56 @@ function setSpeed(){
     linear_speed = parseFloat(document.getElementById("speed-select").value);
 }
 
-// If button is pressed to go forward, it will check if its in a dangerous position. If it's not safe, it will recalculate speed.
-function forward(){
-    if(isSafeVal){
-        twist.linear.x = linear_speed;
-        twist.angular.z = 0
-    }else{
-        twist.linear.x = calculateNewSpeed();
-    }
+function newSpeed(){
+   let newSpeed;
+   newSpeed = 0.2 * ((current_distance - danger_zone) / (detection_range - danger_zone));
+   console.log("Is safe? " + isSafeVal);
+   console.log("Current speed " + newSpeed);
+   return newSpeed;
+}
 
+function forward(){
+	isForward = 1;
+	console.log("the forward is called");
+	console.log("please");
+	if(isSafeVal == 1) {
+	   twist.linear.x = linear_speed;
+	   twist.angular.z = 0;
+	   console.log("User set speed to: " + twist.linear.x); // this line is correct
+	}else{
+	// logic here
+	   twist.linear.x = newSpeed();
+	   console.log("New speed " + twist.linear.x);
+	   twist.angular.z = 0;
+	}
 }
 
 function backward(){
     twist.linear.x = - linear_speed
     twist.angular.z = 0
+    isForward = 0;
 }
 
 function left(){
     twist.linear.x = 0
     twist.angular.z = linear_speed*1.5
+    isForward = 0;
 }
 
 function right(){
-    twist.linear.x = 0
-    twist.angular.z = - linear_speed*1.5
+    twist.linear.x = 0;
+    twist.angular.z = - linear_speed*1.5;
+    isForward = 0;
 }
 
 function stopRover(){
     twist.linear.x = 0
     twist.angular.z = 0
+    isForward = 0;
 }
+
+
+
 
 // *** NEEDS WORK ***
 // function to check if the SID is set.
@@ -406,16 +461,6 @@ function shutdown() {
     sidPub.unadvertise();
     ros.close();
 }
-// Calculate new speed if there's an object
-function calculateNewSpeed() {
-    current_speed = linear_speed * ((current_distance - danger_zone) / (detection_range - danger_zone));
-    return current_speed;
-}
-// Get Data from topic sonar #1
-function piSonarDataCallback(message){
-    current_distance = message.range;
-    console.log(current_distance);
-}
 
 window.onload = function () {
 
@@ -438,5 +483,3 @@ window.onload = function () {
 
     window.addEventListener("beforeunload", () => shutdown());
 }
-
-

@@ -19,10 +19,14 @@ class ReceiveRange:
         self.msg_pub = rospy.Publisher('is_safe', Int16, queue_size=1)
         self.msg_speed_sub = rospy.Subscriber("/cmd_vel", Twist, self.collect_speed_callback)
         self.msg = 1
-        self.safe_distance = 2
+        self.safe_distance = 0.5
 
     def collect_data_callback(self, msg):
         print("received - ", msg.range)
+        self.measurements_queue.append(msg.range)
+        if len(self.measurements_queue) == 10:
+            avg_measurement = sum(self.measurements_queue) / 10
+            
         if msg.range > self.safe_distance:
             self.msg = 1
         else:
@@ -30,7 +34,7 @@ class ReceiveRange:
         self.rate.sleep()
 
     def collect_speed_callback(self, msg):
-        print("current speed of rober is ", msg.linear.x)
+        print("current speed of rover is ", msg.linear.x)
         self.rate.sleep()
 
     def send_msg(self):
