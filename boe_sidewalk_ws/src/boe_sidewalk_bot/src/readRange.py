@@ -17,8 +17,8 @@ class ReceiveRange:
         self.msg_sub = []
         self.measurements_queue = deque(maxlen=10)
         self.rate = rospy.Rate(1)
-        #for x in range(1, 4):
-        self.msg_sub.append(rospy.Subscriber("/pi_sonar/sonar_" + str(3), Range, self.collect_data_callback, callback_args=str(3)))
+        for x in range(1, 4):
+           self.msg_sub.append(rospy.Subscriber("/pi_sonar/sonar_" + str(3), Range, self.collect_data_callback, callback_args=str(3)))
         self.msg_pub = rospy.Publisher('is_safe', Int16, queue_size=1)
         self.avg_pub = rospy.Publisher('avg_distance', Float64, queue_size=1)
         self.speed_pub = rospy.Publisher('current_speed', Float64, queue_size=1)
@@ -27,7 +27,7 @@ class ReceiveRange:
         self.avg_measurement = 0.0
         self.speed = 0.0
         
-        self.safe_distance = 0.5
+        self.safe_distance = 0.7
 
     def collect_data_callback(self, msg, sonarNumber):
         #print("Sonar " + sonarNumber)
