@@ -354,6 +354,9 @@ function setSpeed(){
 function newSpeed(){
    let newSpeed;
    newSpeed = 0.2 * ((current_distance - danger_zone) / (detection_range - danger_zone));
+   if(newSpeed < 0){
+    newSpeed = 0;
+   }
    console.log("Is safe? " + isSafeVal);
    console.log("Current speed " + newSpeed);
    return newSpeed;
