@@ -1,6 +1,7 @@
 # BOESidewalk
-/src folder contains all Python file
-/data folder contains sample data collected from rover
-/images folder contains sample images collected from GoPro camera
-/etc folder contains sample images of UI from rover
+- /boe_sidewalk_ui/js contains all the javascript code for the remote controller that controls the rover
+- /boe_sidewalk_ws/src/boe_sidewalk_bot/src contains all the python code. In particular, readRange.py controls the ultrasonic sensors.
+- /data folder contains sample data collected from rover
+- /images folder contains sample images collected from GoPro camera
+- /etc folder contains sample images of UI from rover
 
